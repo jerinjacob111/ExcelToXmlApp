@@ -9,7 +9,9 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.FileInputStream;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
@@ -167,19 +169,18 @@ public class ExcelApp {
 				try {
 					errMsg.setText("Convertion In progress..");
 
-					// xml file generator
-					DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
-					DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
-					Document doc = dBuilder.newDocument();
+					
 
-					// root element
-					Element rootElement = doc.createElement("Master");
-					doc.appendChild(rootElement);
-
-					Element childelement = doc.createElement("child");
-					rootElement.appendChild(childelement);
+					/*
+					 * Element childelement = doc.createElement("child");
+					 * rootElement.appendChild(childelement);
+					 */
 
 					FileInputStream file = new FileInputStream(new File(inpPath));
+
+					List<String> tagNames = new ArrayList<String>();
+					int count = 0;
+					int tcounter = 1;
 
 					Workbook workbook = new XSSFWorkbook(file);
 					Sheet firstSheet = workbook.getSheetAt(0);
@@ -192,41 +193,112 @@ public class ExcelApp {
 						// iterate in column wise
 						while (cellIterator.hasNext()) {
 							Cell cell = cellIterator.next();
-							Element childelement1 = doc
-									.createElement(cell.getStringCellValue().toString().replaceAll("\\s+", ""));
-							rootElement.appendChild(childelement1);
-							System.out.print(" - ");
+							/*
+							 * Element childelement1 = doc
+							 * .createElement(cell.getStringCellValue().toString().replaceAll("\\s+", ""));
+							 * rootElement.appendChild(childelement1);
+							 */
+							System.out.println("222");
+
+							tagNames.add(cell.getStringCellValue().toString().replaceAll("\\s+", ""));
+							System.out.println();
 						}
-						System.out.println();
+						break;
+					}
+					System.out.println("sass");
+
+					workbook.close();
+
+					FileInputStream file1 = new FileInputStream(new File(inpPath));
+
+					// writing data
+					Workbook workbook1 = new XSSFWorkbook(file1);
+					Sheet firstSheet1 = workbook1.getSheetAt(0);
+					Iterator<Row> iterator1 = firstSheet1.iterator();
+					int c = 0;
+					// iterate in row wise
+					iterator1.next(); // skipping first row
+
+					while (iterator1.hasNext()) {
+						System.out.println("ddd");
+
+						Row nextRow1 = iterator1.next();
+
+						Iterator<Cell> cellIterator1 = nextRow1.cellIterator();
+						// iterate in column wise
+						System.out.println("aaa");
+						
+						// xml file generator
+						DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+						DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+						Document doc = dBuilder.newDocument();
+
+						// root element
+						Element rootElement = doc.createElement("Master");
+						doc.appendChild(rootElement);
+
+						while (cellIterator1.hasNext() && c < tagNames.size()) {
+							Cell cell1 = cellIterator1.next();
+
+							Element childelement = doc.createElement(tagNames.get(c));
+							rootElement.appendChild(childelement);
+							childelement.appendChild(
+									doc.createTextNode(cell1.getStringCellValue().toString().replaceAll("\\s+", "")));
+							c++;
+							System.out.println("44");
+
+						}
+						c=0;
+						
+
+						TransformerFactory transformerFactory = TransformerFactory.newInstance();
+						DOMSource source = new DOMSource(doc);
+						Transformer transformer = transformerFactory.newTransformer();
+
+						// adding indentation and next line
+						transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+						transformer.setOutputProperty(OutputKeys.METHOD, "xml");
+						transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
+
+						// Output to console for testing
+						StreamResult consoleResult = new StreamResult(System.out);
+						transformer.transform(source, consoleResult);
+
+						// write the content into xml file
+						StreamResult result = new StreamResult(new File(outPath + "\\t" + tcounter + ".xml"));
+						transformer.transform(source, result);
+						tcounter++;
 					}
 					System.out.println("3");
 
-					childelement.appendChild(doc.createTextNode("sample data"));
-
-					TransformerFactory transformerFactory = TransformerFactory.newInstance();
-					DOMSource source = new DOMSource(doc);
-					Transformer transformer = transformerFactory.newTransformer();
-					
-					//adding indentation and next line
-					transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-					transformer.setOutputProperty(OutputKeys.METHOD, "xml");
-					transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
-
-					// Output to console for testing
-					StreamResult consoleResult = new StreamResult(System.out);
-					transformer.transform(source, consoleResult);
-
-					// write the content into xml file
-					StreamResult result = new StreamResult(new File(outPath + "\\out.xml"));
-					transformer.transform(source, result);
+					/*
+					 * childelement.appendChild(doc.createTextNode("sample data"));
+					 */
+					/*
+					 * TransformerFactory transformerFactory = TransformerFactory.newInstance();
+					 * DOMSource source = new DOMSource(doc); Transformer transformer =
+					 * transformerFactory.newTransformer();
+					 * 
+					 * // adding indentation and next line
+					 * transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+					 * transformer.setOutputProperty(OutputKeys.METHOD, "xml");
+					 * transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount",
+					 * "4");
+					 * 
+					 * // Output to console for testing StreamResult consoleResult = new
+					 * StreamResult(System.out); transformer.transform(source, consoleResult);
+					 * 
+					 * // write the content into xml file StreamResult result = new StreamResult(new
+					 * File(outPath + "\\out.xml")); transformer.transform(source, result);
+					 */
 					System.out.println("4");
 
-					workbook.close();
+					workbook1.close();
 					file.close();
 					errMsg.setText("Completed!");
 
 				} catch (Exception ex) {
-					// ex.printStackTrace();
+					ex.printStackTrace();
 					errMsg.setText("*Something went wrong");
 				}
 
