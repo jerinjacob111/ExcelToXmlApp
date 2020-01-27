@@ -1,8 +1,10 @@
 package com.excelxml.app;
 
+import java.awt.Dimension;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
@@ -17,22 +19,27 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.filechooser.FileSystemView;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 
 public class ExcelApp {
-	static String inpPath="";
+	static String inpPath = "";
+	static String outPath = "";
 
 	public static void main(String[] args) {
-
-		// Jlabel to show the files user selects
-		// static JLabel labels;
-		
-		
 
 		JFrame frame = new JFrame();
 		frame.setTitle("Excel to XML converter");
@@ -99,7 +106,7 @@ public class ExcelApp {
 					// set the label to the path of the selected file
 					try {
 						userNameTxt.setText(j.getSelectedFile().getAbsolutePath());
-						 inpPath = j.getSelectedFile().getAbsolutePath();
+						inpPath = j.getSelectedFile().getAbsolutePath();
 
 					} catch (Exception ee) {
 						// ee.printStackTrace();
@@ -135,8 +142,11 @@ public class ExcelApp {
 				if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
 					System.out.println("getCurrentDirectory(): " + chooser.getCurrentDirectory());
 					System.out.println("getSelectedFile() : " + chooser.getSelectedFile());
+					outPath = chooser.getSelectedFile().toString();
+					pwdTxt.setText(outPath);
 				} else {
 					System.out.println("No Selection ");
+					pwdTxt.setText("Path not selected");
 				}
 			}
 		});
@@ -146,7 +156,6 @@ public class ExcelApp {
 		constr.gridy = 2;
 		JButton buttonSubmit = new JButton("Submit");
 		panel.add(buttonSubmit, constr);
-		
 
 		constr.gridx = 1;
 		constr.gridy = 3;
@@ -156,46 +165,73 @@ public class ExcelApp {
 		buttonSubmit.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				try {
+					errMsg.setText("Convertion In progress..");
+
+					// xml file generator
+					DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+					DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+					Document doc = dBuilder.newDocument();
+
+					// root element
+					Element rootElement = doc.createElement("Master");
+					doc.appendChild(rootElement);
+
+					Element childelement = doc.createElement("child");
+					rootElement.appendChild(childelement);
 
 					FileInputStream file = new FileInputStream(new File(inpPath));
 
 					Workbook workbook = new XSSFWorkbook(file);
 					Sheet firstSheet = workbook.getSheetAt(0);
 					Iterator<Row> iterator = firstSheet.iterator();
-
+					System.out.println("1");
+					// iterate in row wise
 					while (iterator.hasNext()) {
 						Row nextRow = iterator.next();
 						Iterator<Cell> cellIterator = nextRow.cellIterator();
-
+						// iterate in column wise
 						while (cellIterator.hasNext()) {
 							Cell cell = cellIterator.next();
-
-							switch (cell.getCellType()) {
-							case STRING:
-								System.out.print(cell.getStringCellValue());
-								break;
-							case BOOLEAN:
-								System.out.print(cell.getBooleanCellValue());
-								break;
-							case NUMERIC:
-								System.out.print(cell.getNumericCellValue());
-								break;
-							}
+							Element childelement1 = doc
+									.createElement(cell.getStringCellValue().toString().replaceAll("\\s+", ""));
+							rootElement.appendChild(childelement1);
 							System.out.print(" - ");
 						}
 						System.out.println();
 					}
+					System.out.println("3");
+
+					childelement.appendChild(doc.createTextNode("sample data"));
+
+					TransformerFactory transformerFactory = TransformerFactory.newInstance();
+					DOMSource source = new DOMSource(doc);
+					Transformer transformer = transformerFactory.newTransformer();
+					
+					//adding indentation and next line
+					transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+					transformer.setOutputProperty(OutputKeys.METHOD, "xml");
+					transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
+
+					// Output to console for testing
+					StreamResult consoleResult = new StreamResult(System.out);
+					transformer.transform(source, consoleResult);
+
+					// write the content into xml file
+					StreamResult result = new StreamResult(new File(outPath + "\\out.xml"));
+					transformer.transform(source, result);
+					System.out.println("4");
 
 					workbook.close();
 					file.close();
+					errMsg.setText("Completed!");
+
 				} catch (Exception ex) {
-					//ex.printStackTrace();
+					// ex.printStackTrace();
 					errMsg.setText("*Something went wrong");
 				}
 
 			}
 		});
-		
 
 		mainPanel.add(headingPanel);
 		mainPanel.add(panel);
@@ -203,7 +239,9 @@ public class ExcelApp {
 		// Add panel to frame
 		frame.add(mainPanel);
 		frame.pack();
-		frame.setSize(400, 400);
+		// frame.setSize(500, 500);
+		Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+		frame.setSize(screenSize.width, screenSize.height);
 		frame.setLocationRelativeTo(null);
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		frame.setVisible(true);
